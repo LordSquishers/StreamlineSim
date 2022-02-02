@@ -1,6 +1,6 @@
 # Incompressible Fluid Simulation in Matplotlib
 Whipped up a streamline simulation using potential energy equations I just learned in AVDASI 1. 
-Since you can run Python code on an iOS now, I can make these graphs in realtime during lectures :) .
+Since you can run Python code on iOS now, I can make these graphs in realtime during lectures :) .
 
 ### Types of Components Available
 The following components can be added to the graph either in code or clicking on the graph itself:

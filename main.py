@@ -10,7 +10,8 @@ STAGNATION_POINT_TOLERANCE = 0.25
 
 Y, X = np.mgrid[wy[0]:wy[1]:100j, wx[0]:wx[1]:100j]
 
-sources = [Source(0, 0, 0), Vortex(0, 0, 0), Doublet(0, 0, 0)]
+# sources = [Source(0, 0, 0), Vortex(0, 0, 0), Doublet(0, 0, 0)]
+sources = [Source(1, -0.5, 0), Source(-1, 0.5, 0)]
 
 
 def calculate_fluid():
@@ -60,7 +61,7 @@ def calculate_fluid():
     plt.ylabel('y')
 
     plt.title('Incompressible Fluid Simulation')
-    plt.text(-1.25, wy[0] - 1, '[Source | Sink | AC Vortex | C Vortex | Doublet | Clear]')
+    plt.text(-1.25, wy[0] - 0.5, '[Source | Sink | AC Vortex | C Vortex | Doublet | Clear]')
     plt.scatter(wx[0] + 0.1, wy[1] - 0.1, color='red')
     plt.scatter(stagnation_points[0], stagnation_points[1], color='red', marker='x')
 

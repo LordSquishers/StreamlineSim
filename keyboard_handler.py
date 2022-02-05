@@ -22,7 +22,9 @@ class KBHandler(ui.View):
 				{'input': 'down'}, # strength down
 				
 				{'input': 'up', 'modifiers': 'shift'}, # strength up x 5
-				{'input': 'down', 'modifiers': 'shift'} # strength down x 5
+				{'input': 'down', 'modifiers': 'shift'}, # strength down x 5	
+				
+				{'input': 'M'} # mode switch (add, view)
 				]
 	
 	def key_command(self, sender):
@@ -43,4 +45,6 @@ class KBHandler(ui.View):
 				self.scene.change_strength(-5)
 			else:
 				self.scene.change_strength(-1)
+		if sender['input'] == 'M':
+			self.scene.change_mode()
 

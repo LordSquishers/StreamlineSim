@@ -75,21 +75,56 @@ def calculate_fluid():
 		stagnation_points[0], stagnation_points[1], color='red', marker='x')
 
 	plt.savefig('result.png')
+	return (u, v)
 
 
-calculate_fluid()
+def locate_velocity_values(xpos, ypos, u, v):
+	out_u = 0
+	out_y = 0
+	
+	X_step = (wx[1] - wx[0]) / 100.0
+	current_x = wx[0]
+	i = 0
+	j = 0
+	
+	us = []
+	vs = []
 
-img = ui.Image.named('result.png')
+	for u0 in u:
+		for ux in u0:
+			if abs(xpos - current_x) < 0.05 and abs(ypos - Y[i, j]) < 0.05:
+				# print(current_x, Y[i, j])
+				us.append(ux)
+				vs.append(v[i, j])
+			current_x = current_x + X_step
+			j = j + 1
+		current_x = wx[0]
+		j = 0
+		i = i + 1
+	
+	out_u = np.average(np.array(us))
+	out_v = np.average(np.array(vs))
+	
+	return (out_u, out_v)
 
 
 class TheScene(Scene):
 	def setup(self):
 
+		# vars
 		self.current_strength = DEFAULT_STRENGTH
+		
 		self.selected_choice = 0
 		self.choices = ['Source', 'Sink', 'Doublet', 'Vortex']
-
-		self.graphimage = SpriteNode(Texture(img), scale=0.5)
+		
+		self.selected_mode = 0
+		self.modes = ['Add', 'Inspect']
+		
+		self.u = 0
+		self.v = 0
+		
+		# UI elements
+		self.graphimage = SpriteNode(Texture(ui.Image.named('result.png')), scale=0.5)
 		self.graphimage.position = self.size / 2
 		self.add_child(self.graphimage)
 
@@ -103,6 +138,16 @@ class TheScene(Scene):
 		self.strength_label.position = self.size / 2
 		self.strength_label.position = self.strength_label.position - (0, 350)
 		self.add_child(self.strength_label)
+		
+		self.mode_label = LabelNode('Mode: ' + self.modes[self.selected_mode])
+		self.mode_label.position = self.size / 2
+		self.mode_label.position = self.mode_label.position - (400, 300)
+		self.add_child(self.mode_label)
+		
+		self.inspect_label = LabelNode('(0.000, 0.000) <0.000, 0.000>')
+		self.inspect_label.position = self.size / 2
+		self.inspect_label.position = self.inspect_label.position - (390, 400)
+		self.add_child(self.inspect_label)
 
 	def refresh_graph(self):
 		self.graphimage.remove_from_parent()
@@ -120,17 +165,26 @@ class TheScene(Scene):
 		# coordinates experimentally calculated.
 		x = ((x - 236) * gx_length / 596.0) - (gx_length / 2)
 		y = ((y - 193) * gy_length / 447.0) - (gy_length / 2)
+		
+		if self.modes[self.selected_mode] == 'Add':
+			if self.choices[self.selected_choice] == 'Source':
+				sources.append(Source(self.current_strength, x, y))
+			elif self.choices[self.selected_choice] == 'Sink':
+				sources.append(Source(-self.current_strength, x, y))
+			elif self.choices[self.selected_choice] == 'Doublet':
+				sources.append(Doublet(self.current_strength, x, y))
+			elif self.choices[self.selected_choice] == 'Vortex':
+				sources.append(Vortex(self.current_strength, x, y))
+		elif self.modes[self.selected_mode] == 'Inspect':
+			iu, iv = locate_velocity_values(x, y, self.u, self.v)
+			
+			ix = str(round(x, 3))
+			iy = str(round(y, 3))
+			iu = str(round(iu, 3))
+			iv = str(round(iv, 3))
+			self.inspect_label.text = '(' + ix + ', ' + iy + ') <' + iu + ', ' + iv + '>'
 
-		if self.choices[self.selected_choice] == 'Source':
-			sources.append(Source(self.current_strength, x, y))
-		elif self.choices[self.selected_choice] == 'Sink':
-			sources.append(Source(-self.current_strength, x, y))
-		elif self.choices[self.selected_choice] == 'Doublet':
-			sources.append(Doublet(self.current_strength, x, y))
-		elif self.choices[self.selected_choice] == 'Vortex':
-			sources.append(Vortex(self.current_strength, x, y))
-
-		calculate_fluid()
+		self.u, self.v = calculate_fluid()
 		self.refresh_graph()
 
 	def cycle_next(self):
@@ -146,12 +200,26 @@ class TheScene(Scene):
 		self.strength_label.text = 'Strength: ' + str(self.current_strength)
 
 	def clear_components(self):
+		plt.close()
 		sources.clear()
-		sources.append(Source(0, 0, 0))
-		calculate_fluid()
+		sources.append(Doublet((0.25**2) * 2 * np.pi, 0, 0.5))
+		sources.append(Doublet((0.25**2) * 2 * np.pi, 0, -0.5)) 
+		# change this for precise stuff ^^
+		self.u, self.v = calculate_fluid()
 		self.refresh_graph()
+	
+	def change_mode(self): # the important thing is to find balls
+		self.selected_mode = (self.selected_mode + 1) % len(self.modes)
+		self.mode_label.text = 'Mode: ' + self.modes[self.selected_mode]
+		
+	def set_sources(self, new_sources):
+		self.sources = new_sources
 
 
-root = KBHandler(scene_input=TheScene())
+thescene = TheScene()
+
+root = KBHandler(scene_input=thescene)
 root.present('fullscreen', hide_title_bar=True)
+
+thescene.clear_components()
 

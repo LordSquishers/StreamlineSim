@@ -24,9 +24,8 @@ Ideally you should be able to either define bodies or select a number of streaml
 would be extremely helpful in visualizing flow around an object.
 
 ### iPad Pythonista Compatibility
-The `main_ipad.py` script should be run in Pythonista (3.6). This version is actually more straightforward and useful than the standalone Matplotlib version. To operate, left and right cycle the types of components, while the up and down arrow change the strength by 1 (using shift changes the strength by 5).
+The `main_ipad.py` script should be run in Pythonista (3.6). This version is actually more straightforward and useful than the standalone Matplotlib version. To operate, left and right arrow cycle the types of components, while the up and down arrow change the strength by 1 (using shift changes the strength by 5). Pressing M will change touch modes between Add and Inspect. Keyboard required for key input.
 
-***
 ## Examples
 
 #### Single Source in Uniform Flow `[Source(1, 0, 0)]`

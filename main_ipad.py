@@ -7,6 +7,7 @@ from scene import *
 from keyboard_handler import KBHandler
 
 # TODO: hightlight equal potential lines, interactive graph (move and zoom)
+# add graph components (visual, not physical.)
 
 wx = [-2, 2]
 wy = [-1.5, 1.5]
@@ -18,17 +19,7 @@ Y, X = np.mgrid[wy[0]:wy[1]:100j, wx[0]:wx[1]:100j]
 
 sources = [Source(0, 0, 0), Vortex(0, 0, 0), Doublet(0, 0, 0)]
 
-
-def calculate_fluid():
-	# vector fields
-	u = 1  # streamline of strength 1 in x+ direction
-	v = 0
-
-	for src in sources:
-		su, sv = src.evaluate(X, Y)
-		u = u + su
-		v = v + sv
-
+def locate_stagnation_points(u, v, tolerance):
 	stagnation_points = [[], []]
 
 	X_step = (wx[1] - wx[0]) / 100.0
@@ -38,8 +29,8 @@ def calculate_fluid():
 
 	for u0 in u:
 		for ux in u0:
-			if abs(ux) < STAGNATION_POINT_TOLERANCE and abs(
-					v[i, j]) < STAGNATION_POINT_TOLERANCE:
+			if abs(ux) < tolerance and abs(
+					v[i, j]) < tolerance:
 				# print(current_x, Y[i, j])
 				stagnation_points[0].append(current_x)
 				stagnation_points[1].append(Y[i, j])
@@ -50,6 +41,21 @@ def calculate_fluid():
 		current_x = wx[0]
 		j = 0
 		i = i + 1
+	
+	return stagnation_points
+
+
+def calculate_fluid(streamline_points):
+	# vector fields
+	u = 1  # streamline of strength 1 in x+ direction
+	v = 0
+
+	for src in sources:
+		su, sv = src.evaluate(X, Y)
+		u = u + su
+		v = v + sv
+
+	stagnation_points = locate_stagnation_points(u, v, STAGNATION_POINT_TOLERANCE)
 
 	# Varying color along a streamline
 	fig = plt.figure(figsize=(12, 7))
@@ -71,10 +77,15 @@ def calculate_fluid():
 	plt.title('Incompressible Fluid Simulation')
 	plt.text(-1.25, wy[0] - 0.5,
 										'[Source | Sink | AC Vortex | C Vortex | Doublet | Clear]')
-	plt.scatter(
-		stagnation_points[0], stagnation_points[1], color='red', marker='x')
+	plt.scatter(stagnation_points[0], stagnation_points[1], color='red', marker='x')
+
+	if streamline_points is not None:
+		for streamlines in streamline_points:	
+			sxs, sys = simulate_streamline(streamlines[0], streamlines[1], u, v)
+			plt.scatter(sxs, sys, color='blue')	
 
 	plt.savefig('result.png')
+	plt.close()
 	return (u, v)
 
 
@@ -92,7 +103,7 @@ def locate_velocity_values(xpos, ypos, u, v):
 
 	for u0 in u:
 		for ux in u0:
-			if abs(xpos - current_x) < 0.05 and abs(ypos - Y[i, j]) < 0.05:
+			if abs(xpos - current_x) < 0.025 and abs(ypos - Y[i, j]) < 0.025:
 				# print(current_x, Y[i, j])
 				us.append(ux)
 				vs.append(v[i, j])
@@ -106,6 +117,26 @@ def locate_velocity_values(xpos, ypos, u, v):
 	out_v = np.average(np.array(vs))
 	
 	return (out_u, out_v)
+	
+
+def simulate_streamline(x0, y0, u, v):
+	INTEGRATION_STEP = 0.05
+	INTEGRATION_LENGTH = 20*5
+	
+	x_positions = [x0]
+	y_positions = [y0]
+	
+	for i in range(INTEGRATION_LENGTH):
+		if (x_positions[-1] > wx[1] and y_positions[-1] > wy[1]) or (x_positions[-1] < wx[0] and y_positions[-1] < wy[0]):
+			continue
+		cu, cv = locate_velocity_values(x_positions[-1], y_positions[-1], u, v)
+		new_x = x_positions[-1] + cu*INTEGRATION_STEP
+		new_y = y_positions[-1] + cv*INTEGRATION_STEP
+		
+		x_positions.append(new_x)
+		y_positions.append(new_y)
+	
+	return x_positions, y_positions
 
 
 class TheScene(Scene):
@@ -118,7 +149,7 @@ class TheScene(Scene):
 		self.choices = ['Source', 'Sink', 'Doublet', 'Vortex']
 		
 		self.selected_mode = 0
-		self.modes = ['Add', 'Inspect']
+		self.modes = ['Add', 'Inspect', 'Simulate']
 		
 		self.u = 0
 		self.v = 0
@@ -175,17 +206,23 @@ class TheScene(Scene):
 				sources.append(Doublet(self.current_strength, x, y))
 			elif self.choices[self.selected_choice] == 'Vortex':
 				sources.append(Vortex(self.current_strength, x, y))
+			
+			self.u, self.v = calculate_fluid(None)
+			self.refresh_graph()
 		elif self.modes[self.selected_mode] == 'Inspect':
 			iu, iv = locate_velocity_values(x, y, self.u, self.v)
-			
 			ix = str(round(x, 3))
 			iy = str(round(y, 3))
 			iu = str(round(iu, 3))
 			iv = str(round(iv, 3))
 			self.inspect_label.text = '(' + ix + ', ' + iy + ') <' + iu + ', ' + iv + '>'
+		elif self.modes[self.selected_mode] == 'Simulate':
+			if self.current_strength < 0:
+				self.u, self.v = calculate_fluid([ [x, y-0.01], [x, y+0.01] ])
+			else:
+				self.u, self.v = calculate_fluid([ [x, y] ])
+			self.refresh_graph()
 
-		self.u, self.v = calculate_fluid()
-		self.refresh_graph()
 
 	def cycle_next(self):
 		self.selected_choice = (self.selected_choice + 1) % len(self.choices)
@@ -202,10 +239,11 @@ class TheScene(Scene):
 	def clear_components(self):
 		plt.close()
 		sources.clear()
-		sources.append(Doublet((0.25**2) * 2 * np.pi, 0, 0.5))
-		sources.append(Doublet((0.25**2) * 2 * np.pi, 0, -0.5)) 
+		sources.append(Source(0, 0, 0))
+		#sources.append(Doublet((0.25**2) * 2 * np.pi, 0, 0.5))
+		#sources.append(Doublet((0.25**2) * 2 * np.pi, 0, -0.5)) 
 		# change this for precise stuff ^^
-		self.u, self.v = calculate_fluid()
+		self.u, self.v = calculate_fluid(None)
 		self.refresh_graph()
 	
 	def change_mode(self): # the important thing is to find balls
